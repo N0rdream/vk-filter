@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+
+  filter:
+    build: .
+    image: filter
+    env_file: .env
+    command: bash -c "python3 manage.py collectstatic --noinput && gunicorn filter.wsgi --log-level INFO -b 0.0.0.0:8000"
+    network_mode: host
+    volumes:
+      - .:/vk-filter
+      - /var/www/vk-filter:/var/www/vk-filter
+    depends_on:
+      - mq
+      - redis_server
+
+  mq:
+    image: rabbitmq:3-management
+    network_mode: host
+
+  filter_workers:
+    image: filter
+    env_file: .env
+    command: celery -A filter worker -l info
+    depends_on:
+      - mq
+      - redis_server
+      - filter
+    network_mode: host
+
+  filter_beat:
+    image: filter
+    env_file: .env
+    command: celery -A filter beat -l info
+    depends_on:
+      - mq
+      - redis_server
+      - filter
+    network_mode: host
+
+  redis_server:
+    image: redis:3
+    env_file: .env
+    network_mode: host
+
+  flower:
+    image: filter
+    env_file: .env
+    command: flower -A filter --broker=amqp://localhost:5672 --port=7777 --address=0.0.0.0 --url_prefix=flower
+    network_mode: host
+    depends_on:
+      - mq
+      - filter_beat
+      - redis_server

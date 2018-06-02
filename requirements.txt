@@ -1,0 +1,9 @@
+Django
+gunicorn
+requests
+celery
+psycopg2
+redis
+flower
+ipython
+django-extensions
